@@ -1,21 +1,44 @@
-import React from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import React, { useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "react-bootstrap";
-import { cases } from "../data";
+import { useCrimeData } from "../CrimeContext";
+import Timer from "../components/Timer";
 
 const GamePage = () => {
   const { numSuspects } = useParams();
-  const gameData = cases[0];
-  const suspects = gameData.suspects.slice(0, numSuspects);
+  const { crimeData, setCrimeData, mode } = useCrimeData();
   const navigate = useNavigate();
 
-  const handleInterrogation = () => {
-    navigate(`/interrogate/${suspects[0].name}`);
+  useEffect(() => {
+    const fetchCrimeData = async () => {
+      try {
+        const response = await fetch("http://localhost:5000/api/random-case");
+        const data = await response.json();
+        setCrimeData(data);
+      } catch (error) {
+        console.error("Error fetching crime data:", error);
+      }
+    };
+
+    if (!crimeData) {
+      fetchCrimeData();
+    }
+  }, [crimeData, setCrimeData]);
+
+  if (!crimeData) {
+    return <div>Loading crime data...</div>;
   }
+
+  const suspects = crimeData.suspects.slice(0, numSuspects);
+
+  const handleInterrogationResults = () => {
+    navigate(`/interrogation-result/${suspects[0].name}`);
+  };
 
   return (
     <div className="container mt-5">
-      <h3 className="mb-3">Crime Scene: {gameData.crimeScene}</h3>
+      {mode === "timer" && <Timer />}
+      <h3 className="mb-3">Crime Scene: {crimeData.crime_scene}</h3>
       <h3>Suspects:</h3>
       <ul>
         {suspects.map((suspect, index) => (
@@ -24,12 +47,9 @@ const GamePage = () => {
           </li>
         ))}
       </ul>
-      <Button variant="primary" onClick={handleInterrogation} className="mb-3">
-        Start Interrogation
+      <Button variant="primary" onClick={handleInterrogationResults} className="mb-3">
+        View Interrogation Results
       </Button>
-      {/* <Button variant="primary" onClick={handleInterrogation} className="mb-3">
-        Analyze Crime Scene
-      </Button> */}
     </div>
   );
 };
