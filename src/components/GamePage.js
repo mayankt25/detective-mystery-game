@@ -1,11 +1,10 @@
 import React, { useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "react-bootstrap";
 import { useCrimeData } from "../CrimeContext";
 import Timer from "../components/Timer";
 
 const GamePage = () => {
-  const { numSuspects } = useParams();
   const { crimeData, setCrimeData, mode } = useCrimeData();
   const navigate = useNavigate();
 
@@ -29,7 +28,7 @@ const GamePage = () => {
     return <div>Loading crime data...</div>;
   }
 
-  const suspects = crimeData.suspects.slice(0, numSuspects);
+  const suspects = crimeData.suspects;
 
   const handleInterrogationResults = () => {
     navigate(`/interrogation-result/${suspects[0].name}`);

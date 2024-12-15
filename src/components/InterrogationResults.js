@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button, Form } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
@@ -6,7 +6,7 @@ import { useCrimeData } from "../CrimeContext";
 import Timer from "../components/Timer";
 
 const InterrogationResults = () => {
-  const { crimeData, mode } = useCrimeData();
+  const { crimeData, mode, stopTimer } = useCrimeData();
   const [allResponses, setAllResponses] = useState({});
   const navigate = useNavigate();
   const { suspectName } = useParams();
@@ -20,10 +20,10 @@ const InterrogationResults = () => {
       setAllResponses((prev) => ({
         ...prev,
         [suspectName]: prev[suspectName] || {
-          motive: false,
-          weapon: false,
-          alibi: false,
-          eyewitness: false,
+          motive: null,
+          evidence: null,
+          alibi: null,
+          eyewitness: null,
         },
       }));
     }
@@ -39,17 +39,28 @@ const InterrogationResults = () => {
     }));
   };
 
+  const isLastSuspect = currentIndex === suspects.length - 1;
+
   const handleNextSuspect = () => {
+    if (isLastSuspect) {
+      stopTimer();
+    }
     if (currentIndex < suspects.length - 1) {
       const nextSuspect = suspects[currentIndex + 1].name;
       navigate(`/interrogation-result/${nextSuspect}`);
     } else {
-      console.log("Final Data: ", allResponses);
-      navigate("/results");
+      const finalResponses = Object.fromEntries(
+        Object.entries(allResponses).map(([suspect, answers]) => [
+          suspect,
+          Object.fromEntries(
+            Object.entries(answers).map(([key, value]) => [key, value === null ? false : value])
+          ),
+        ])
+      );
+      console.log("Final Data: ", finalResponses);
+      navigate("/results", { state: { finalData: finalResponses } });
     }
   };
-
-  const isLastSuspect = currentIndex === suspects.length - 1;
 
   if (!suspect) {
     return <div>Error: Suspect not found</div>;
@@ -57,7 +68,7 @@ const InterrogationResults = () => {
 
   return (
     <div className="container mt-5">
-      {mode === "timer" && <Timer />}
+      {mode === "timer" && <Timer key={suspectName} />}
       <h2>Interrogation Results for {suspect.name}</h2>
 
       <div className="mt-4">
@@ -77,14 +88,14 @@ const InterrogationResults = () => {
 
       <div className="mt-4">
         <h4>Your Assessment:</h4>
-        {["motive", "weapon", "alibi", "eyewitness"].map((question) => (
+        {["motive", "evidence", "alibi", "eyewitness"].map((question) => (
           <div key={question} className="mb-3">
             <p>
               <strong>
                 {question === "motive" && "Do you think the suspect has a motive?"}
-                {question === "weapon" && "Do you think the weapon found is linked with the suspect?"}
-                {question === "alibi" && "Do you think the alibi is verified?"}
-                {question === "eyewitness" && "Do you think the suspect was seen by any eyewitness?"}
+                {question === "evidence" && "Do you think the evidence is linked with the suspect?"}
+                {question === "alibi" && "Does the alibi fit the facts?"}
+                {question === "eyewitness" && "Is the eyewitness statement believable?"}
               </strong>
             </p>
             <Form>

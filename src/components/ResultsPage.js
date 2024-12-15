@@ -1,65 +1,96 @@
 import React, { useState, useEffect } from "react";
-import { Button, Form } from "react-bootstrap";
-import axios from "axios";
+import { useLocation } from "react-router-dom";
+import { useCrimeData } from "../CrimeContext";
+import { toast } from "react-toastify";
+import { CircularProgressbar } from "react-circular-progressbar";
+import "react-circular-progressbar/dist/styles.css";
 
 const ResultsPage = () => {
-  const [guiltProbabilities, setGuiltProbabilities] = useState([]);
-  const [userGuess, setUserGuess] = useState("");
-  const [resultMessage, setResultMessage] = useState("");
+  const location = useLocation();
+  const { finalData } = location.state || {};
+  const [apiResults, setApiResults] = useState(null);
+  const [answer, setAnswer] = useState(null);
+  const { crimeData } = useCrimeData();
+
+  const formattedResults = apiResults
+    ? Object.entries(apiResults).map(([name, probability]) => ({
+      name,
+      percentage: (probability * 100).toFixed(2),
+    }))
+    : [];
 
   useEffect(() => {
-    axios
-      .post("http://localhost:5000/find-culprit", { /* data */ }).then((response) => {
-        setGuiltProbabilities(response.data);
-      })
-      .catch((error) => {
-        console.error("Error fetching Bayesian Network data:", error);
-      });
-  }, []);
+    if (answer && crimeData) {
+      const isCorrect = answer === crimeData.killer;
+      const message = isCorrect
+        ? "Congratulations! You identified the killer!"
+        : `Sorry, the killer was ${crimeData.killer}. Better luck next time!`;
 
-  const handleSubmitGuess = () => {
-    const correctAnswer = guiltProbabilities.reduce((max, suspect) => {
-      return suspect.probability > max.probability ? suspect : max;
-    }, {});
-    if (userGuess === correctAnswer.name) {
-      setResultMessage(`Correct! ${correctAnswer.name} is guilty.`);
-    } else {
-      setResultMessage(`Wrong! The guilty person is ${correctAnswer.name}.`);
+      toast(message, { type: isCorrect ? "success" : "error" });
     }
-  };
+  }, [answer, crimeData]);
+
+  useEffect(() => {
+    if (finalData) {
+      fetch("http://this.is.dora/api/from-dora", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(finalData),
+      }).then((res) => res.json()).then((data) => {
+        setApiResults(data);
+        const highest = Object.entries(data).reduce((a, b) =>
+          b[1] > a[1] ? b : a
+        );
+        setAnswer(highest[0]);
+      })
+        .catch((err) => console.error("Error:", err));
+    }
+  }, [finalData]);
 
   return (
-    <div className="container mt-5">
-      <h2>Results</h2>
-      <h4>Based on the Bayesian Network analysis, here are the guilt probabilities:</h4>
-      <ul>
-        {guiltProbabilities.map((suspect, index) => (
-          <li key={index}>
-            {suspect.name}: {suspect.probability * 100}% guilty
-          </li>
-        ))}
-      </ul>
-      <h4>Make your guess!</h4>
-      <Form>
-        <Form.Group>
-          <Form.Label>Who do you think is guilty?</Form.Label>
-          <Form.Control
-            as="select"
-            value={userGuess}
-            onChange={(e) => setUserGuess(e.target.value)}
+    <div className="container">
+      <h1 className="my-4 text-center">Results</h1>
+
+      <div className="text-center mb-4">
+        <h4>Your choice: {answer}</h4>
+        <h5>Actual Killer: {crimeData.killer}</h5>
+      </div>
+
+      <div className="row justify-content-center mb-4">
+        {formattedResults.map(({ name, percentage }) => (
+          <div
+            className="col-md-4 mb-4 d-flex flex-column align-items-center mt-4"
+            key={name}
           >
-            {guiltProbabilities.map((suspect, index) => (
-              <option key={index} value={suspect.name}>
-                {suspect.name}
-              </option>
-            ))}
-          </Form.Control>
-        </Form.Group>
-        <Button variant="primary" onClick={handleSubmitGuess}>
-          Submit Guess
-        </Button>
-      </Form>
-      <p>{resultMessage}</p>
+            <h5 className="mb-3">{name}</h5>
+
+            <div style={{ width: "120px", height: "120px" }}>
+              <CircularProgressbar
+                value={percentage}
+                text={`${percentage}%`}
+                styles={{
+                  path: {
+                    stroke: "#007bff",
+                    strokeWidth: 10,
+                  },
+                  trail: {
+                    stroke: "#f8f9fa",
+                    strokeWidth: 10,
+                  },
+                  text: {
+                    fill: "#007bff",
+                    fontSize: "1.2rem",
+                    fontWeight: "bold",
+                  },
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="text-center mb-4">
+        {answer === crimeData.killer ? <h5 style={{ color: "green" }}>You Won</h5> : <h5 style={{ color: "red" }}>You Lost</h5>}
+      </div>
     </div>
   );
 };
